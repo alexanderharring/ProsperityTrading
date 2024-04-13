@@ -1,7 +1,8 @@
-from datamodel import OrderDepth, UserId, TradingState, Order
-from typing import List
 import string
-
+import json
+from datamodel import Listing, Observation, Order, OrderDepth, ProsperityEncoder, Symbol, Trade, TradingState
+from typing import Any
+import math
 
 AMETHYSTS = "AMETHYSTS"
 STARFRUIT = "STARFRUIT"
@@ -24,16 +25,38 @@ class Trader:
 
         orders = []
 
-        #basically how many can we buy and sell
-
         howManyBuyAmethysts = self.getPositionLimit(AMETHYSTS) - amethystsPosition
         howManySellAmethysts = -(self.getPositionLimit(AMETHYSTS) + amethystsPosition)
 
-        buyOrder = Order(AMETHYSTS, self.getDefaultPrice(AMETHYSTS) - 1, howManyBuyAmethysts)
-        sellOrder = Order(AMETHYSTS, self.getDefaultPrice(AMETHYSTS) + 1, howManySellAmethysts)
+        maxDeviation = 3.8
 
-        orders.append(buyOrder)
-        orders.append(sellOrder)
+
+        for buyPrice, buyVolume in state.order_depths[AMETHYSTS].buy_orders.items():
+            if buyPrice > self.getDefaultPrice(AMETHYSTS):
+
+                dev = buyPrice - self.getDefaultPrice(AMETHYSTS)
+                scalar = dev / maxDeviation
+
+                amount = int(math.ceil(scalar * howManySellAmethysts))
+
+                print(f"BUY -> PRICE: {buyPrice} -> AMOUNT: {buyVolume} -> MY VOLUME {amount}")
+
+                newOrder = Order(AMETHYSTS, buyPrice, amount)
+                orders.append(newOrder)
+
+
+        for sellPrice, sellVolume in state.order_depths[AMETHYSTS].sell_orders.items():
+            if sellPrice < self.getDefaultPrice(AMETHYSTS):
+
+                dev = self.getDefaultPrice(AMETHYSTS) - sellPrice
+                scalar = dev / maxDeviation
+
+                amount = int(math.ceil(scalar * howManyBuyAmethysts))
+
+                print(f"SELL -> PRICE: {buyPrice} -> AMOUNT: {buyVolume} -> MY VOLUME {amount}")
+
+                newOrder = Order(AMETHYSTS, buyPrice, amount)
+                orders.append(newOrder)
 
         return orders
 
@@ -46,8 +69,6 @@ class Trader:
 
         result[AMETHYSTS] = self.amethystsStrat(state)
 
-        traderData = "SAMPLE" 
+        traderData = "SAMPLE"
         conversions = 1
-        # logger.flush(state, result, conversions, traderData)
-
         return result, conversions, traderData
